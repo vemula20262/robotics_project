@@ -171,6 +171,33 @@ class VisibilityMap:
             self.visibility_map[(3, 1)] = True
             self.visibility_map[(1, 4)] = True
         
+        elif target_position ==(5,1):
+            for i in range(1,6):
+                self.visibility_map[(i, 1)] = True
+                self.visibility_map[(5, i)] = True
+        elif target_position ==(5,2):
+            for i in range(1,6):
+                self.visibility_map[(5, i)] = True
+            self.visibility_map[(2, 1)] = True
+            self.visibility_map[(3, 2)] = True
+        elif target_position == (5,3):
+            for i in range(1,6):
+                self.visibility_map[(5, i)] = True
+        elif target_position == (5,4):
+            for i in range(1,6):
+                self.visibility_map[(5, i)] = True
+        elif target_position == (5,5):
+            for i in range(1,6):
+                self.visibility_map[(5, i)] = True
+                self.visibility_map[(i, 5)] = True
+        elif target_position == (4,5):
+            for i in range(1,6):
+                self.visibility_map[(i, 5)] = True
+            self.visibility_map[(1,4)] = True
+        elif target_position == (4,1):
+            for i in range(1,6):
+                self.visibility_map[(i, 1)] = True
+        
     def ray_casting(self, source, target):
         x1, y1 = source
         x2, y2 = target
