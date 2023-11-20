@@ -38,7 +38,7 @@ maze = [
     "#     #",
     "# ##  #",
     "#     #",
-    "#S ## #",
+    "# S## #",
     "#     #",
     "#######",
 ]
@@ -126,6 +126,7 @@ class VisibilityMap:
                                     
                             queue.append(next_cell)
                         done.add(next_cell)
+        print(target_position)
         if target_position == (1, 1):
             for i in range(3, 6):
                 self.visibility_map[(1, i)] = True
@@ -158,6 +159,17 @@ class VisibilityMap:
         elif target_position == (4, 1):
             for i in range(1,3):
                 self.visibility_map[(i, 1)] = True
+        elif target_position == (3,3):
+            self.visibility_map[(3, 1)] = True
+            self.visibility_map[(3, 5)] = True
+        elif target_position == (3,2):
+            self.visibility_map[(3, 4)] = True
+            self.visibility_map[(3, 5)] = True
+            self.visibility_map[(5, 2)] = True
+        elif target_position == (3,4):
+            self.visibility_map[(3, 2)] = True
+            self.visibility_map[(3, 1)] = True
+            self.visibility_map[(1, 4)] = True
         
     def ray_casting(self, source, target):
         x1, y1 = source
