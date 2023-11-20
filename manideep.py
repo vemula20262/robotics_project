@@ -8,7 +8,7 @@ import math
 pygame.init()
 
 # Constants
-WIDTH, HEIGHT = 650, 450
+WIDTH, HEIGHT = 350, 250
 GRID_SIZE = 30
 FPS = 10
 
@@ -35,10 +35,10 @@ BLACK = (0, 0, 0)
 # ]
 maze = [
     "#######",
-    "# S   #",
+    "#     #",
     "# ##  #",
     "#     #",
-    "#  ## #",
+    "#S ## #",
     "#     #",
     "#######",
 ]
@@ -130,10 +130,35 @@ class VisibilityMap:
             for i in range(3, 6):
                 self.visibility_map[(1, i)] = True
                 self.visibility_map[(i, 1)] = True
-        if target_position == (1, 2):
+        elif target_position == (1, 2):
             for i in range(3,6):
                 self.visibility_map[(1, i)] = True
-
+        elif target_position == (1, 3):
+            self.visibility_map[(1, 5)] = True
+            self.visibility_map[(1, 1)] = True
+        elif target_position == (1, 4):
+            for i in range(1,3):
+                self.visibility_map[(1, i)] = True
+            self.visibility_map[(3, 4)] = True
+            self.visibility_map[(4, 5)] = True
+        elif target_position == (1, 5):
+            for i in range(3,6):
+                self.visibility_map[(i, 5)] = True
+            for i in range(1,4):
+                self.visibility_map[(1, i)] = True
+        elif target_position == (2, 1):
+            for i in range(4,6):
+                self.visibility_map[(i, 1)] = True
+            self.visibility_map[(5, 2)] = True
+        elif target_position == (3, 1):
+            for i in range(3,6):
+                self.visibility_map[(3, i)] = True
+            self.visibility_map[(1, 1)] = True
+            self.visibility_map[(5, 11)] = True
+        elif target_position == (4, 1):
+            for i in range(1,3):
+                self.visibility_map[(i, 1)] = True
+        
     def ray_casting(self, source, target):
         x1, y1 = source
         x2, y2 = target
