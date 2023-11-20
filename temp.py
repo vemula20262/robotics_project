@@ -35,7 +35,7 @@ BLACK = (0, 0, 0)
 # ]
 maze = [
     "#######",
-    "#S    #",
+    "# S   #",
     "# ##  #",
     "#     #",
     "#  ## #",
@@ -130,8 +130,9 @@ class VisibilityMap:
             for i in range(3, 6):
                 self.visibility_map[(1, i)] = True
                 self.visibility_map[(i, 1)] = True
-
-
+        if target_position == (1, 2):
+            for i in range(3,6):
+                self.visibility_map[(2, i)] = True
 
     def ray_casting(self, source, target):
         x1, y1 = source
