@@ -5,7 +5,7 @@ import sys
 pygame.init()
 
 # Constants
-WIDTH, HEIGHT = 300, 300
+WIDTH, HEIGHT = 700, 500
 GRID_SIZE = 30
 FPS = 10
 
@@ -15,13 +15,18 @@ BLACK = (0, 0, 0)
 
 # Create a small maze with a starting point (S) and an ending point (E)
 maze = [
-    "#######",
-    "#S    #",
-    "# ### #",
-    "# # E #",
-    "# ### #",
-    "#     #",
-    "#######"
+    "#####################",
+    "#     #   S         #",
+    "# ### # ###  #####  #",
+    "# #   #   #    #    #",
+    "# ######  ###  #  ###",
+    "#      #    #  #  # #",
+    "####  ## #  ####  # #",
+    "#     #  #  #       #",
+    "#  ####  ####   #####",
+    "#           #       #",
+    "#####################"
+
 ]
 
 # Initialize Pygame window
