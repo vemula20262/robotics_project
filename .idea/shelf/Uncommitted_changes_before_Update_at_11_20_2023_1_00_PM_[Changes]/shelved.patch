@@ -1,0 +1,427 @@
+Index: temp.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>import numpy as np\r\nimport pygame\r\nimport sys\r\nfrom collections import deque\r\nimport math\r\n\r\n# Initialize Pygame\r\npygame.init()\r\n\r\n# Constants\r\nWIDTH, HEIGHT = 650, 450\r\nGRID_SIZE = 30\r\nFPS = 10\r\n\r\n# Colors\r\nWHITE = (255, 255, 255)\r\nBLACK = (0, 0, 0)\r\n\r\n# Maze definition\r\n# maze = [\r\n#     \"#####################\",\r\n#     \"#         S         #\",\r\n#     \"#                   #\",\r\n#     \"#                   #\",\r\n#     \"#        ###        #\",\r\n#     \"#                   #\",\r\n#     \"#                   #\",\r\n#     \"#                   #\",\r\n#     \"#   E               #\",\r\n#     \"#                   #\",\r\n#     \"#                   #\",\r\n#     \"#                   #\",\r\n#     \"#                   #\",\r\n#     \"#####################\",\r\n# ]\r\nmaze = [\r\n    \"#######\",\r\n    \"#S    #\",\r\n    \"# ##  #\",\r\n    \"#     #\",\r\n    \"#  ## #\",\r\n    \"#     #\",\r\n    \"#######\",\r\n]\r\n\r\n# Initialize Pygame window\r\nscreen = pygame.display.set_mode((WIDTH, HEIGHT))\r\npygame.display.set_caption(\"Rat Maze\")\r\n\r\n# Clock to control the frame rate\r\nclock = pygame.time.Clock()\r\n\r\ndef draw_maze():\r\n    for row in range(len(maze)):\r\n        for col in range(len(maze[0])):\r\n            if maze[row][col] == '#':\r\n                color = BLACK\r\n            elif maze[row][col] == 'S':\r\n                color = (0, 255, 0)  # Green for starting point\r\n            elif maze[row][col] == 'E':\r\n                color = (255, 0, 0)  # Red for ending point\r\n            else:\r\n                color = WHITE\r\n            pygame.draw.rect(screen, color, (col * GRID_SIZE, row * GRID_SIZE, GRID_SIZE, GRID_SIZE), 0)\r\n\r\ndef find_start(maze):\r\n    for row in range(len(maze)):\r\n        for col in range(len(maze[0])):\r\n            if maze[row][col] == 'S':\r\n                return (row, col)\r\n\r\nclass VisibilityMap:\r\n    def __init__(self, maze):\r\n        self.maze = maze\r\n        self.grid_size = (len(maze), len(maze[0]))\r\n        self.visibility_map = np.full(self.grid_size, False, dtype=bool)\r\n        self.lVertices = self.convert_maze_to_vertices()\r\n    def convert_maze_to_vertices(self):\r\n        vertices = []\r\n        for row_index, row in enumerate(self.maze):\r\n            for col_index, cell in enumerate(row):\r\n                if cell == '#':  # Wall\r\n                    # Add the wall's vertices (corners)\r\n                    vertices.append((col_index, row_index))\r\n        return vertices\r\n    \r\n    def update_visibility(self, target_position):\r\n        self.visibility_map.fill(False)\r\n        queue = deque([target_position])\r\n        self.visibility_map[target_position] = True\r\n        def chebyshev_distance(cell_a, cell_b):\r\n            return max(abs(cell_a[0] - cell_b[0]), abs(cell_a[1] - cell_b[1]))\r\n        done = set()\r\n        while queue:\r\n            print(queue)\r\n            for i in range(len(queue)):\r\n\r\n                current = queue.popleft()\r\n                # print(queue)\r\n                current_distance_to_target = chebyshev_distance(current, target_position)\r\n                # print(current_distance_to_target)\r\n\r\n\r\n                # Inside your while loop, after dequeuing the current cell\r\n                for direction in [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1)]:  # 4 orthogonal and 4 diagonal directions\r\n                    next_cell = (current[0] + direction[0], current[1] + direction[1])\r\n\r\n                    # Check boundaries and whether the cell has been processed\r\n                    if (0 <= next_cell[0] < self.grid_size[0] and \r\n                        0 <= next_cell[1] < self.grid_size[1] and \r\n                        not self.visibility_map[next_cell] and \r\n                        next_cell not in done):\r\n\r\n                        # Consider all eight surrounding cells ('canalysis' cells)\r\n                        canalysis = []\r\n                        for d in [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1)]:\r\n                            neighbor = (next_cell[0] + d[0], next_cell[1] + d[1])\r\n                            if (0 <= neighbor[0] < self.grid_size[0] and\r\n                                0 <= neighbor[1] < self.grid_size[1] and\r\n                                chebyshev_distance(neighbor, target_position) < chebyshev_distance(next_cell, target_position)):\r\n                                canalysis.append(neighbor)\r\n                        print(canalysis, next_cell)\r\n                        if maze[next_cell[0]][next_cell[1]] != '#':\r\n                            if all(self.visibility_map[(c[0], c[1])] for c in canalysis):\r\n                                self.visibility_map[next_cell] = True\r\n                                    \r\n                            queue.append(next_cell)\r\n                        done.add(next_cell)\r\n        if target_position == (1, 1):\r\n            for i in range(3, 6):\r\n                self.visibility_map[(1, i)] = True\r\n                self.visibility_map[(i, 1)] = True\r\n\r\n\r\n\r\n    def ray_casting(self, source, target):\r\n        x1, y1 = source\r\n        x2, y2 = target\r\n        \r\n        is_visible = True\r\n        \r\n        dx = x2 - x1\r\n        dy = y2 - y1\r\n        \r\n        if dx == 0:\r\n            m = 999 #vertical line\r\n        else:\r\n            m = dy/dx\r\n            \r\n        y = y1\r\n        for x in range(x1, x2+1):\r\n            cell = (round(x), round(y))\r\n            if cell in self.lVertices:\r\n                is_visible = False\r\n                break\r\n            y += m\r\n            \r\n        return is_visible\r\ndef draw_visibility_map(visibility_map):\r\n    for row in range(len(visibility_map.maze)):\r\n        for col in range(len(visibility_map.maze[0])):\r\n            if visibility_map.visibility_map[row, col]:\r\n                pygame.draw.circle(screen, (0, 0, 255), (col * GRID_SIZE + GRID_SIZE // 2, row * GRID_SIZE + GRID_SIZE // 2), GRID_SIZE // 4)\r\n\r\ndef main():\r\n    start_position = find_start(maze)\r\n    visibility_map = VisibilityMap(maze)\r\n    visibility_map.update_visibility(start_position)\r\n\r\n    while True:\r\n        for event in pygame.event.get():\r\n            if event.type == pygame.QUIT:\r\n                pygame.quit()\r\n                sys.exit()\r\n\r\n        screen.fill(WHITE)\r\n        draw_maze()\r\n        draw_visibility_map(visibility_map)\r\n\r\n        pygame.display.flip()\r\n        clock.tick(FPS)\r\n\r\nif __name__ == \"__main__\":\r\n    main()\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/temp.py b/temp.py
+--- a/temp.py	
++++ b/temp.py	
+@@ -2,13 +2,12 @@
+ import pygame
+ import sys
+ from collections import deque
+-import math
+ 
+ # Initialize Pygame
+ pygame.init()
+ 
+ # Constants
+-WIDTH, HEIGHT = 650, 450
++WIDTH, HEIGHT = 650, 350
+ GRID_SIZE = 30
+ FPS = 10
+ 
+@@ -17,30 +16,18 @@
+ BLACK = (0, 0, 0)
+ 
+ # Maze definition
+-# maze = [
+-#     "#####################",
+-#     "#         S         #",
+-#     "#                   #",
+-#     "#                   #",
+-#     "#        ###        #",
+-#     "#                   #",
+-#     "#                   #",
+-#     "#                   #",
+-#     "#   E               #",
+-#     "#                   #",
+-#     "#                   #",
+-#     "#                   #",
+-#     "#                   #",
+-#     "#####################",
+-# ]
+ maze = [
+-    "#######",
+-    "#S    #",
+-    "# ##  #",
+-    "#     #",
+-    "#  ## #",
+-    "#     #",
+-    "#######",
++    "#####################",
++    "#     #             #",
++    "# ### # ###   ####  #",
++    "# #   #   #     #   #",
++    "# ######  ###   # S #",
++    "#      #    # E # ###",
++    "##### ##  # ##### # #",
++    "#     #   # #       #",
++    "# #####   ###   #####",
++    "#           #       #",
++    "#####################"
+ ]
+ 
+ # Initialize Pygame window
+@@ -83,79 +70,113 @@
+                     # Add the wall's vertices (corners)
+                     vertices.append((col_index, row_index))
+         return vertices
+-    
++
++    # def update_visibility(self, target_position):
++    #     self.visibility_map.fill(False)
++    #     self.visibility_map[target_position] = True
++    #
++    #     for row in range(self.grid_size[0]):
++    #         for col in range(self.grid_size[1]):
++    #             if self.maze[row][col] != '#':
++    #                 self.visibility_map[row, col] = self.is_visible(target_position, (row, col))
++
+     def update_visibility(self, target_position):
+         self.visibility_map.fill(False)
+         queue = deque([target_position])
+         self.visibility_map[target_position] = True
+         def chebyshev_distance(cell_a, cell_b):
+             return max(abs(cell_a[0] - cell_b[0]), abs(cell_a[1] - cell_b[1]))
+-        done = set()
++
+         while queue:
+             print(queue)
+-            for i in range(len(queue)):
+-
+-                current = queue.popleft()
+-                # print(queue)
+-                current_distance_to_target = chebyshev_distance(current, target_position)
+-                # print(current_distance_to_target)
++            current = queue.popleft()
++            current_distance_to_target = chebyshev_distance(current, target_position)
+ 
+-
+-                # Inside your while loop, after dequeuing the current cell
+-                for direction in [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1)]:  # 4 orthogonal and 4 diagonal directions
+-                    next_cell = (current[0] + direction[0], current[1] + direction[1])
++            for direction in [(-1, 0), (1, 0), (0, -1), (0, 1)]:  # 4 directions: up, down, left, right
++                next_cell = (current[0] + direction[0], current[1] + direction[1])
+ 
+-                    # Check boundaries and whether the cell has been processed
+-                    if (0 <= next_cell[0] < self.grid_size[0] and 
+-                        0 <= next_cell[1] < self.grid_size[1] and 
+-                        not self.visibility_map[next_cell] and 
+-                        next_cell not in done):
++                if (0 <= next_cell[0] < self.grid_size[0] and
++                        0 <= next_cell[1] < self.grid_size[1] and
++                        not self.visibility_map[next_cell]):
++
++                    # Determine Canalysis for the current cell
++                    canalysis = [(next_cell[0] + dx, next_cell[1] + dy) for dx in [-1, 0, 1] for dy in [-1, 0, 1]
+ 
+-                        # Consider all eight surrounding cells ('canalysis' cells)
+-                        canalysis = []
+-                        for d in [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1)]:
+-                            neighbor = (next_cell[0] + d[0], next_cell[1] + d[1])
+-                            if (0 <= neighbor[0] < self.grid_size[0] and
+-                                0 <= neighbor[1] < self.grid_size[1] and
+-                                chebyshev_distance(neighbor, target_position) < chebyshev_distance(next_cell, target_position)):
+-                                canalysis.append(neighbor)
+-                        print(canalysis, next_cell)
++                                 if 0 <= next_cell[0] + dx < self.grid_size[0]
++                                 and 0 <= next_cell[1] + dy < self.grid_size[1]
++                                 and chebyshev_distance((next_cell[0] + dx, next_cell[1] + dy),
++                                                        target_position) < current_distance_to_target]
++                    print(canalysis, next_cell,maze[next_cell[0]][next_cell[1]], target_position)
++
++                    # Check visibility based on Canalysis cells
++                    if all(self.visibility_map[c[0], c[1]] for c in canalysis):
+                         if maze[next_cell[0]][next_cell[1]] != '#':
+-                            if all(self.visibility_map[(c[0], c[1])] for c in canalysis):
+-                                self.visibility_map[next_cell] = True
+-                                    
+-                            queue.append(next_cell)
+-                        done.add(next_cell)
+-        if target_position == (1, 1):
+-            for i in range(3, 6):
+-                self.visibility_map[(1, i)] = True
+-                self.visibility_map[(i, 1)] = True
+-
+-
+-
+-    def ray_casting(self, source, target):
+-        x1, y1 = source
+-        x2, y2 = target
+-        
+-        is_visible = True
+-        
+-        dx = x2 - x1
+-        dy = y2 - y1
+-        
+-        if dx == 0:
+-            m = 999 #vertical line
+-        else:
+-            m = dy/dx
+-            
+-        y = y1
+-        for x in range(x1, x2+1):
+-            cell = (round(x), round(y))
+-            if cell in self.lVertices:
+-                is_visible = False
+-                break
+-            y += m
+-            
+-        return is_visible
++                            self.visibility_map[next_cell] = True
++                        queue.append(next_cell)
++                    elif not any(self.visibility_map[c[0], c[1]] for c in canalysis) :
++                        self.visibility_map[next_cell] = False
++                    else:
++                        print("nxt",next_cell)
++                        return False
++                    # elif any(self.visibility_map[c[0], c[1]] for c in canalysis):
++                    #     # If any Canalysis cells are visible, perform ray casting
++                    #     self.visibility_map[next_cell] = self.ray_casting(target_position, next_cell)
++                    #     if self.visibility_map[next_cell]:
++                    #         queue.append(next_cell)
++    # def is_visible(self, target_position, cell):
++    #     if cell == target_position:
++    #         return True
++    #
++    #     # Calculate Chebyshev distance
++    #     def chebyshev_distance(cell_a, cell_b):
++    #         return max(abs(cell_a[0] - cell_b[0]), abs(cell_a[1] - cell_b[1]))
++    #
++    #     distance_to_target = chebyshev_distance(cell, target_position)
++    #
++    #     # Determine Canalysis cells
++    #     canalysis = [(r, c) for r in range(max(0, cell[0] - 1), min(self.grid_size[0], cell[0] + 2))
++    #                         for c in range(max(0, cell[1] - 1), min(self.grid_size[1], cell[1] + 2))
++    #                         if chebyshev_distance((r, c), target_position) < distance_to_target]
++    #     print(canalysis,cell,target_position)
++    #     # Check visibility based on Canalysis cells
++    #     if all(self.visibility_map[c[0], c[1]] for c in canalysis):
++    #         return True
++    #     elif not any(self.visibility_map[c[0], c[1]] for c in canalysis):
++    #         return False
++    #     else:
++    #         # Perform ray casting from target to the cell
++    #         return self.ray_casting(target_position, cell)
++
++    def ray_casting(self, start, end):
++        # Assume start is the point to test ('locationToTest') and the polygon is the maze walls
++        x_test, y_test = start
++        iCrossings = 0
++
++        for iVertex in range(len(self.lVertices)):
++            # Assume the vertices are defined with (x, y) tuples
++            x_start, y_start = self.lVertices[iVertex]
++            if iVertex < len(self.lVertices) - 1:
++                x_end, y_end = self.lVertices[iVertex + 1]
++            else:
++                x_end, y_end = self.lVertices[0]
++
++            # Check if point lies on a horizontal line segment
++            if y_start == y_test == y_end and x_start <= x_test <= x_end:
++                return True  # Point lies exactly on a horizontal line segment
++
++            # Check if test point is to the right of both segment endpoints or to the left
++            if y_start > y_test and y_end > y_test or y_start < y_test and y_end < y_test:
++                continue  # Ray cannot intersect with this segment
++
++            # Calculate intersection point of the ray with the edge
++            x_intersect = ((y_test - y_end) * (x_start - x_end) / (y_start - y_end)) + x_end
++
++            # Check if the intersection point is to the right of the test point
++            if x_intersect > x_test:
++                iCrossings += 1
++
++        # Odd number of crossings indicates the point is inside the polygon
++        return iCrossings % 2 != 0
+ def draw_visibility_map(visibility_map):
+     for row in range(len(visibility_map.maze)):
+         for col in range(len(visibility_map.maze[0])):
+Index: .idea/workspace.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+><?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n<project version=\"4\">\r\n  <component name=\"AutoImportSettings\">\r\n    <option name=\"autoReloadType\" value=\"SELECTIVE\" />\r\n  </component>\r\n  <component name=\"ChangeListManager\">\r\n    <list default=\"true\" id=\"46380eb0-540c-4559-8210-ff7db214ab9e\" name=\"Changes\" comment=\"\" />\r\n    <option name=\"SHOW_DIALOG\" value=\"false\" />\r\n    <option name=\"HIGHLIGHT_CONFLICTS\" value=\"true\" />\r\n    <option name=\"HIGHLIGHT_NON_ACTIVE_CHANGELIST\" value=\"false\" />\r\n    <option name=\"LAST_RESOLUTION\" value=\"IGNORE\" />\r\n  </component>\r\n  <component name=\"FileTemplateManagerImpl\">\r\n    <option name=\"RECENT_TEMPLATES\">\r\n      <list>\r\n        <option value=\"Python Script\" />\r\n      </list>\r\n    </option>\r\n  </component>\r\n  <component name=\"ProjectId\" id=\"2YJLgc285C5s1ueGcjr8PL2B5HF\" />\r\n  <component name=\"ProjectViewState\">\r\n    <option name=\"hideEmptyMiddlePackages\" value=\"true\" />\r\n    <option name=\"showLibraryContents\" value=\"true\" />\r\n  </component>\r\n  <component name=\"PropertiesComponent\">{\r\n  &quot;keyToString&quot;: {\r\n    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,\r\n    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,\r\n    &quot;last_opened_file_path&quot;: &quot;C:/Users/vemul/PycharmProjects/robotoics_project&quot;\r\n  }\r\n}</component>\r\n  <component name=\"RunManager\" selected=\"Python.temp\">\r\n    <configuration name=\"main\" type=\"PythonConfigurationType\" factoryName=\"Python\" temporary=\"true\" nameIsGenerated=\"true\">\r\n      <module name=\"robotoics_project\" />\r\n      <option name=\"INTERPRETER_OPTIONS\" value=\"\" />\r\n      <option name=\"PARENT_ENVS\" value=\"true\" />\r\n      <envs>\r\n        <env name=\"PYTHONUNBUFFERED\" value=\"1\" />\r\n      </envs>\r\n      <option name=\"SDK_HOME\" value=\"\" />\r\n      <option name=\"WORKING_DIRECTORY\" value=\"$PROJECT_DIR$\" />\r\n      <option name=\"IS_MODULE_SDK\" value=\"true\" />\r\n      <option name=\"ADD_CONTENT_ROOTS\" value=\"true\" />\r\n      <option name=\"ADD_SOURCE_ROOTS\" value=\"true\" />\r\n      <option name=\"SCRIPT_NAME\" value=\"$PROJECT_DIR$/main.py\" />\r\n      <option name=\"PARAMETERS\" value=\"\" />\r\n      <option name=\"SHOW_COMMAND_LINE\" value=\"false\" />\r\n      <option name=\"EMULATE_TERMINAL\" value=\"false\" />\r\n      <option name=\"MODULE_MODE\" value=\"false\" />\r\n      <option name=\"REDIRECT_INPUT\" value=\"false\" />\r\n      <option name=\"INPUT_FILE\" value=\"\" />\r\n      <method v=\"2\" />\r\n    </configuration>\r\n    <configuration name=\"temp\" type=\"PythonConfigurationType\" factoryName=\"Python\" temporary=\"true\" nameIsGenerated=\"true\">\r\n      <module name=\"robotoics_project\" />\r\n      <option name=\"INTERPRETER_OPTIONS\" value=\"\" />\r\n      <option name=\"PARENT_ENVS\" value=\"true\" />\r\n      <envs>\r\n        <env name=\"PYTHONUNBUFFERED\" value=\"1\" />\r\n      </envs>\r\n      <option name=\"SDK_HOME\" value=\"\" />\r\n      <option name=\"WORKING_DIRECTORY\" value=\"$PROJECT_DIR$\" />\r\n      <option name=\"IS_MODULE_SDK\" value=\"true\" />\r\n      <option name=\"ADD_CONTENT_ROOTS\" value=\"true\" />\r\n      <option name=\"ADD_SOURCE_ROOTS\" value=\"true\" />\r\n      <option name=\"SCRIPT_NAME\" value=\"$PROJECT_DIR$/temp.py\" />\r\n      <option name=\"PARAMETERS\" value=\"\" />\r\n      <option name=\"SHOW_COMMAND_LINE\" value=\"false\" />\r\n      <option name=\"EMULATE_TERMINAL\" value=\"false\" />\r\n      <option name=\"MODULE_MODE\" value=\"false\" />\r\n      <option name=\"REDIRECT_INPUT\" value=\"false\" />\r\n      <option name=\"INPUT_FILE\" value=\"\" />\r\n      <method v=\"2\" />\r\n    </configuration>\r\n    <recent_temporary>\r\n      <list>\r\n        <item itemvalue=\"Python.temp\" />\r\n        <item itemvalue=\"Python.main\" />\r\n      </list>\r\n    </recent_temporary>\r\n  </component>\r\n  <component name=\"SpellCheckerSettings\" RuntimeDictionaries=\"0\" Folders=\"0\" CustomDictionaries=\"0\" DefaultDictionary=\"application-level\" UseSingleDictionary=\"true\" transferred=\"true\" />\r\n  <component name=\"TaskManager\">\r\n    <task active=\"true\" id=\"Default\" summary=\"Default task\">\r\n      <changelist id=\"46380eb0-540c-4559-8210-ff7db214ab9e\" name=\"Changes\" comment=\"\" />\r\n      <created>1700238848132</created>\r\n      <option name=\"number\" value=\"Default\" />\r\n      <option name=\"presentableId\" value=\"Default\" />\r\n      <updated>1700238848132</updated>\r\n    </task>\r\n    <servers />\r\n  </component>\r\n</project>
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/workspace.xml b/.idea/workspace.xml
+--- a/.idea/workspace.xml	
++++ b/.idea/workspace.xml	
+@@ -4,7 +4,12 @@
+     <option name="autoReloadType" value="SELECTIVE" />
+   </component>
+   <component name="ChangeListManager">
+-    <list default="true" id="46380eb0-540c-4559-8210-ff7db214ab9e" name="Changes" comment="" />
++    <list default="true" id="46380eb0-540c-4559-8210-ff7db214ab9e" name="Changes" comment="">
++      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
++      <change afterPath="$PROJECT_DIR$/Following_feild.py" afterDir="false" />
++      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
++      <change beforePath="$PROJECT_DIR$/temp.py" beforeDir="false" afterPath="$PROJECT_DIR$/temp.py" afterDir="false" />
++    </list>
+     <option name="SHOW_DIALOG" value="false" />
+     <option name="HIGHLIGHT_CONFLICTS" value="true" />
+     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+@@ -17,7 +22,11 @@
+       </list>
+     </option>
+   </component>
++  <component name="Git.Settings">
++    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
++  </component>
+   <component name="ProjectId" id="2YJLgc285C5s1ueGcjr8PL2B5HF" />
++  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
+   <component name="ProjectViewState">
+     <option name="hideEmptyMiddlePackages" value="true" />
+     <option name="showLibraryContents" value="true" />
+@@ -26,10 +35,32 @@
+   &quot;keyToString&quot;: {
+     &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
+     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
++    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+     &quot;last_opened_file_path&quot;: &quot;C:/Users/vemul/PycharmProjects/robotoics_project&quot;
+   }
+ }</component>
+   <component name="RunManager" selected="Python.temp">
++    <configuration name="Following_feild" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
++      <module name="robotoics_project" />
++      <option name="INTERPRETER_OPTIONS" value="" />
++      <option name="PARENT_ENVS" value="true" />
++      <envs>
++        <env name="PYTHONUNBUFFERED" value="1" />
++      </envs>
++      <option name="SDK_HOME" value="" />
++      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
++      <option name="IS_MODULE_SDK" value="true" />
++      <option name="ADD_CONTENT_ROOTS" value="true" />
++      <option name="ADD_SOURCE_ROOTS" value="true" />
++      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/Following_feild.py" />
++      <option name="PARAMETERS" value="" />
++      <option name="SHOW_COMMAND_LINE" value="false" />
++      <option name="EMULATE_TERMINAL" value="false" />
++      <option name="MODULE_MODE" value="false" />
++      <option name="REDIRECT_INPUT" value="false" />
++      <option name="INPUT_FILE" value="" />
++      <method v="2" />
++    </configuration>
+     <configuration name="main" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+       <module name="robotoics_project" />
+       <option name="INTERPRETER_OPTIONS" value="" />
+@@ -75,6 +106,7 @@
+     <recent_temporary>
+       <list>
+         <item itemvalue="Python.temp" />
++        <item itemvalue="Python.Following_feild" />
+         <item itemvalue="Python.main" />
+       </list>
+     </recent_temporary>
+Index: .idea/vcs.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/vcs.xml b/.idea/vcs.xml
+new file mode 100644
+--- /dev/null	
++++ b/.idea/vcs.xml	
+@@ -0,0 +1,6 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<project version="4">
++  <component name="VcsDirectoryMappings">
++    <mapping directory="$PROJECT_DIR$" vcs="Git" />
++  </component>
++</project>
+\ No newline at end of file
+Index: Following_feild.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/Following_feild.py b/Following_feild.py
+new file mode 100644
+--- /dev/null	
++++ b/Following_feild.py	
+@@ -0,0 +1,81 @@
++import numpy as np
++from collections import deque
++
++class FollowingField:
++    def __init__(self, visibility_map, target_position, obstacle_map):
++        self.visibility_map = visibility_map
++        self.target_position = target_position
++        self.obstacle_map = obstacle_map
++        self.grid_size = visibility_map.shape
++        self.repulsion_field = np.full(self.grid_size, np.inf)
++        self.attraction_field = np.full(self.grid_size, np.inf)
++        self.combined_field = None
++        self.resolution = 1  # distance resolution, adjust as needed
++
++    def calculate_distance_field_from_invisible_region(self):
++        boundary_cells = self.find_boundary_cells()
++        queue = deque(boundary_cells)
++        visited = set(boundary_cells)
++
++        while queue:
++            cell = queue.popleft()
++            neighbors = self.find_neighbors(cell)
++
++            for neighbor in neighbors:
++                if neighbor not in visited and not self.obstacle_map[neighbor]:
++                    visited.add(neighbor)
++                    queue.append(neighbor)
++                    if self.visibility_map[neighbor]:
++                        self.repulsion_field[neighbor] = self.repulsion_field[cell] + self.resolution
++                    else:
++                        self.repulsion_field[neighbor] = self.repulsion_field[cell] - self.resolution
++
++    def find_boundary_cells(self):
++        # Placeholder for boundary cell finding algorithm
++        # Return a list of boundary cell coordinates based on the visibility map
++        return []
++
++    def find_neighbors(self, cell):
++        directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
++        neighbors = []
++        for direction in directions:
++            neighbor = (cell[0] + direction[0], cell[1] + direction[1])
++            if 0 <= neighbor[0] < self.grid_size[0] and 0 <= neighbor[1] < self.grid_size[1]:
++                neighbors.append(neighbor)
++        return neighbors
++
++    def calculate_attraction_field(self):
++        # Wavefront algorithm to calculate attraction field
++        queue = deque([self.target_position])
++        self.attraction_field[self.target_position] = 0
++        visited = set([self.target_position])
++
++        while queue:
++            cell = queue.popleft()
++            neighbors = self.find_neighbors(cell)
++
++            for neighbor in neighbors:
++                if neighbor not in visited and not self.obstacle_map[neighbor]:
++                    visited.add(neighbor)
++                    queue.append(neighbor)
++                    self.attraction_field[neighbor] = self.attraction_field[cell] + self.resolution
++
++    def compute_following_field(self):
++        self.calculate_distance_field_from_invisible_region()
++        self.calculate_attraction_field()
++        self.combined_field = self.repulsion_field + self.attraction_field
++        return self.combined_field
++
++# Example usage
++# visibility_map is a numpy array where False indicates invisible cells and True indicates visible cells
++# target_position is a tuple (row, col) indicating the target's position
++# obstacle_map is a numpy array where True indicates an obstacle cell
++visibility_map = np.array([
++    # ... your visibility map here ...
++])
++target_position = (x, y)  # your target's position here
++obstacle_map = np.array([
++    # ... your obstacle map here ...
++])
++following_field = FollowingField(visibility_map, target_position, obstacle_map)
++following_field.compute_following_field()
