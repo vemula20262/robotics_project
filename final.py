@@ -125,7 +125,7 @@ class VisibilityMap:
                                 self.boundary_cells.append((row, col))
                                 break  # No need to check other neighbors
 
-        print(self.boundary_cells)
+        # print(self.boundary_cells)
 
     def calculate_distance_field(self, resolution=1):
         # Initialize the distance field with None
@@ -159,7 +159,7 @@ class VisibilityMap:
                     distance_field[y[0]][y[1]] = distance_field[q[0]][q[1]] - resolution
                 queue.append(y)
             temp_set.clear()
-        print(distance_field)
+        # print(distance_field)
         self.distance_field = distance_field
 
     def is_edge_cell(self, row, col):
@@ -235,8 +235,8 @@ class VisibilityMap:
                                 canalysis.append(neighbor)
                         # print(canalysis, next_cell)
                         if maze[next_cell[0]][next_cell[1]] != '#':
-                            print(next_cell)
-                            print(canalysis)
+                            # print(next_cell)
+                            # print(canalysis)
                             if any(self.visibility_map[(c[0], c[1])] for c in canalysis):
                                 # raycasting
                                 if all(self.visibility_map[(c[0], c[1])] for c in canalysis):
@@ -259,30 +259,12 @@ def draw_visibility_map(visibility_map):
             if visibility_map.visibility_map[row, col]:
                 pygame.draw.circle(screen, (0, 0, 255),
                                    (col * GRID_SIZE + GRID_SIZE // 2, row * GRID_SIZE + GRID_SIZE // 2), GRID_SIZE // 4)
-def generate_wavefront(grid, start_pos):
-    wavefront = np.full(grid.shape, -1)  # -1 indicates unvisited cells
-    q = deque()
-    q.append(start_pos)
-    wavefront[start_pos] = 0
 
-    while q:
-        x, y = q.popleft()
-        for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:  # 4-neighborhood
-            nx, ny = x + dx, y + dy
-            if 0 <= nx < grid.shape[0] and 0 <= ny < grid.shape[1]:
-                if wavefront[nx, ny] == -1 and grid[nx, ny] == 0:
-                    wavefront[nx, ny] = wavefront[x, y] + 1
-                    q.append((nx, ny))
-
-    return wavefront
 def draw_boundary_cells(boundary_cells):
     for row, col in boundary_cells:
         pygame.draw.rect(screen, (255, 0, 0), (col * GRID_SIZE, row * GRID_SIZE, GRID_SIZE, GRID_SIZE))  # Fill red for boundary cells
 
 def compute_attraction_field(maze, target):
-    """
-    Compute the attraction field for the maze given a target position.
-    """
     field = np.full(maze.shape, -1)  # Initialize with -1
     queue = [target]
     field[target] = 100  # Starting value for the target
@@ -296,6 +278,14 @@ def compute_attraction_field(maze, target):
                     field[nx, ny] = field[x, y] - 10  # Decrease the value
                     queue.append((nx, ny))
 
+    # make target cell with attraction field to 0
+    field[target] = 0
+
+    # make all 8 cells around the target cell with attraction field to 0
+    for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+        nx, ny = target[0] + dx, target[1] + dy
+        if 0 <= nx < maze.shape[0] and 0 <= ny < maze.shape[1]:
+            field[nx, ny] = 0
     return field
 
 def parse_maze(maze_str):
@@ -304,34 +294,21 @@ def parse_maze(maze_str):
     """
     return np.array([[0 if char == '#' else 1 for char in row] for row in maze_str])
 
-def generate_repulsion_field(grid, repulsion_range=3):
-    repulsion_field = np.zeros(grid.shape)
-    for x in range(grid.shape[0]):
-        for y in range(grid.shape[1]):
-            if grid[x, y] == 1:
-                for dx in range(-repulsion_range, repulsion_range + 1):
-                    for dy in range(-repulsion_range, repulsion_range + 1):
-                        nx, ny = x + dx, y + dy
-                        if 0 <= nx < grid.shape[0] and 0 <= ny < grid.shape[1]:
-                            distance = np.sqrt(dx**2 + dy**2)
-                            repulsion_field[nx, ny] += max(0, repulsion_range - distance)
 
-    return repulsion_field
 
 def main():
-    start_position = find_start(maze)
     visibility_map = VisibilityMap(maze)
 
     # Define the path as a list of tuples (y, x)
-    path = [(9, 19), (9, 18), (9, 17), (9, 16), (9, 15), (9, 14), (8, 14), (8, 15), (7, 15), (7, 16), (7, 17), (6, 17),
+    path = [ (9, 17), (9, 16), (9, 15), (9, 14), (8, 14), (8, 15), (7, 15), (7, 16), (7, 17), (6, 17),
             (5, 17), (4, 17), (3, 17), (3, 18), (2, 18), (1, 18), (1, 17), (1, 16), (1, 15), (1, 14), (1, 13), (1, 12),
             (1, 11), (1, 10), (1, 9), (1, 8), (1, 7), (2, 7), (3, 7), (3, 8), (5, 8), (6, 8), (7, 8), (8, 8), (9, 8),
             (9, 7), (9, 6), (9, 5), (9, 4), (9, 3), (9, 2), (8, 2), (7, 2), (7, 3), (7, 4), (6, 4), (5, 4), (5, 3),
             (5, 2), (5, 1), (4, 1), (3, 1), (2, 1), (1, 1)]
-
+    robot_path = [(9, 19)]
     path_index = 0  # Start with the first position in the path
 
-    move_delay = 200  # milliseconds
+    move_delay = 2000  # milliseconds
     last_move_time = pygame.time.get_ticks()
     running = True
     while running:
@@ -347,44 +324,64 @@ def main():
             current_pos = path[path_index]
             visibility_map.update_visibility(current_pos)
             visibility_map.compute_boundary_cells()  # Compute boundary cells
-            visibility_map.calculate_distance_field()  # Calculate the distance field
-
+            # visibility_map.calculate_distance_field()  # Calculate the distance field
             # Draw the maze, visibility map, and boundary cells
             draw_maze()
             draw_visibility_map(visibility_map)
-            draw_boundary_cells(visibility_map.boundary_cells)
-        # Draw the visibility map
-        draw_visibility_map(visibility_map)
-
-        # Draw the path and the robot
+            # draw_boundary_cells(visibility_map.boundary_cells)
+        # Draw the path and the target
         for i in range(path_index):
             if i + 1 < len(path):
                 start_point = (path[i][1] * GRID_SIZE + GRID_SIZE // 2, path[i][0] * GRID_SIZE + GRID_SIZE // 2)
                 end_point = (path[i + 1][1] * GRID_SIZE + GRID_SIZE // 2, path[i + 1][0] * GRID_SIZE + GRID_SIZE // 2)
                 pygame.draw.line(screen, (128, 128, 128), start_point, end_point, 5)
 
-        # Draw the robot at the current path position
+        # Draw the target at the current path position
         if path_index < len(path):
-            robot_pos = path[path_index]
-            robot_screen_x = robot_pos[1] * GRID_SIZE + GRID_SIZE // 2
-            robot_screen_y = robot_pos[0] * GRID_SIZE + GRID_SIZE // 2
-            pygame.draw.circle(screen, (0, 128, 255), (robot_screen_x, robot_screen_y), GRID_SIZE // 2)
+            target_pos = path[path_index]
+            target_screen_x = target_pos[1] * GRID_SIZE + GRID_SIZE // 2
+            target_screen_y = target_pos[0] * GRID_SIZE + GRID_SIZE // 2
+            pygame.draw.circle(screen, (0, 128, 255), (target_screen_x, target_screen_y), GRID_SIZE // 2)
 
+        # # now draw the robot path
+        # for i in range(len(robot_path)-1):
+        #     if i + 1 < len(robot_path):
+        #         # draw the robot
+        #         pygame.draw.circle(screen, (0, 128, 0), (robot_path[i][1] * GRID_SIZE + GRID_SIZE // 2, robot_path[i][0] * GRID_SIZE + GRID_SIZE // 2), GRID_SIZE // 2)
+        #         # it must be update the robot postion based on the attraction field
+
+
+
+
+        # all the above this which we have done is to draw the maze and the path and the target
         np_maze = parse_maze(maze)
-        # generate the attraction field accroding to the target position
-        # attraction_field = compute_attraction_field(np_maze, path[path_index])
-        # render the attraction_field on the screen based on the value as gradient color of yellow
-        # for row in range(len(attraction_field)):
-        #     for col in range(len(attraction_field[0])):
-        #         if attraction_field[row, col] != -1:
-        #             # pygame.draw.rect(screen, (255, 2 * (attraction_field[row, col]), 0),
-        #             #                  (col * GRID_SIZE, row * GRID_SIZE, GRID_SIZE, GRID_SIZE))
-        # #             with 90% transparency
-        #             pygame.draw.rect(screen, (255, 2 * (attraction_field[row, col]), 0),
-        #                              (col * GRID_SIZE, row * GRID_SIZE, GRID_SIZE, GRID_SIZE))
-        # plot the attraction_field
-        # plot_maze_and_field(np_maze, attraction_field)
+        # now we are going to work on the robot_path based on attraction_field
+        attraction_field = compute_attraction_field(np_maze, path[path_index])
+        # now in the robot path we are going to append the robot position and intial position already appended
+        robot_position = robot_path[-1]
+        # we are going to find the next position of the robot based on the attraction field and the visibility map
+        for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1),
+                                  (1, 1)]:
+            nx, ny = robot_position[0] + dx, robot_position[1] + dy
+            if 0 <= nx < np_maze.shape[0] and 0 <= ny < np_maze.shape[1] and visibility_map.visibility_map[nx, ny]:
+                # find teh position where the attraction field is maximum
+                if attraction_field[nx, ny] > attraction_field[robot_position]:
+                    robot_position = (nx, ny)
+        robot_path.append(robot_position)
 
+        print(robot_path)
+
+
+
+
+
+
+    # now render a robot in the maze with circle which follows target path but 2 frames later then it moves along the path
+        for i in range(len(robot_path)-1):
+            if i + 1 < len(robot_path):
+                # draw the robot
+                pygame.draw.circle(screen, (0, 128, 0), (robot_path[-2][1] * GRID_SIZE + GRID_SIZE // 2, robot_path[-2][0] * GRID_SIZE + GRID_SIZE // 2), GRID_SIZE // 2)
+                # it must be update the robot postion based on the attraction field
 
 
         pygame.display.flip()
@@ -396,24 +393,9 @@ def main():
             last_move_time = current_time
 
         clock.tick(FPS)
-
-
-    grid_size = 20
-    grid = np.zeros((grid_size, grid_size))
-    grid[5:15, 10] = 1  # Adding an obstacle
-    target_pos = (0, 0)  # Target position at the top left corner
-
-    # Generate fields
-    attraction_field = generate_wavefront(grid, target_pos)
-    repulsion_field = generate_repulsion_field(grid)
-
-
-
     plt.show()
     pygame.quit()
     sys.exit()
-
-
 
 if __name__ == "__main__":
     main()
