@@ -210,9 +210,9 @@ class VisibilityMap:
                         distance_field[next_cell] == np.inf):  # Unvisited cell
 
                     if not self.visibility_map[next_cell]:  # If it's part of the invisible region
-                        distance_field[next_cell] = current_distance + 1
-                    else:  # If it's part of the visible region
                         distance_field[next_cell] = current_distance - 1
+                    else:  # If it's part of the visible region
+                        distance_field[next_cell] = current_distance + 1
 
                     queue.append(next_cell)
 
@@ -270,7 +270,7 @@ def main():
     
     # Create a custom colormap
     # Colors will range from blue (less intense) for negative values to red (more intense) for positive values
-    cmap = mcolors.LinearSegmentedColormap.from_list('my_cmap', ['blue', 'white', 'red'])
+    cmap = mcolors.LinearSegmentedColormap.from_list('my_cmap', ['red', 'white', 'blue'])
     
     # Create a normalize object that will map the repulsion values to the [0, 1] range of the colormap
     norm = mcolors.TwoSlopeNorm(vmin=np.min(repulsion_field), vcenter=0, vmax=np.max(repulsion_field))
@@ -302,11 +302,6 @@ def main():
         
         clock.tick(FPS)
         
-        
-        
-    
-
-
 
 if __name__ == "__main__":
     main()
