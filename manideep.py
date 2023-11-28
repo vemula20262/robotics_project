@@ -33,17 +33,7 @@ maze = [
     "#  ####  ####   #####",
     "#           #       #",
     "#####################"
-
 ]
-# maze = [
-#     "#######",
-#     "#     #",
-#     "# ##  #",
-#     "# S   #",
-#     "#  ## #",
-#     "#     #",
-#     "#######",
-# ]
 
 # Initialize Pygame window
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -219,7 +209,35 @@ class VisibilityMap:
         # The distance_field now contains the repulsion field
         return distance_field
 
+def compute_attraction_field(maze, target):
+    field = np.full(maze.shape, -1)  # Initialize with -1
+    queue = [target]
+    field[target] = 10  # Starting value for the target
+    while queue:
+        x, y = queue.pop(0)
+        for dx, dy in [(1, 0), (-1, 0), (0, 1), (0, -1)]:  # Check 4 directions
+            nx, ny = x + dx, y + dy
+            if 0 <= nx < maze.shape[0] and 0 <= ny < maze.shape[1]:
+                if maze[nx, ny] == 1 and field[nx, ny] == -1:  # If not an obstacle and not visited
+                    field[nx, ny] = field[x, y] - 1  # Decrease the value
+                    queue.append((nx, ny))
 
+    # make target cell with attraction field to 0
+    field[target] = 0
+
+    # make all 8 cells around the target cell with attraction field to 0
+    for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+        nx, ny = target[0] + dx, target[1] + dy
+        if 0 <= nx < maze.shape[0] and 0 <= ny < maze.shape[1]:
+            field[nx, ny] = 0
+    return field
+
+def compute_following_field(rep, att, a, b):
+    fol = np.zeros(rep.shape)
+    for i in range(rep.shape[0]):
+        for j in range(rep.shape[1]):
+            fol[i][j] = a * rep[i][j] + b * att[i][j]
+    return fol
 def draw_visibility_map(visibility_map):
     for row in range(len(visibility_map.maze)):
         for col in range(len(visibility_map.maze[0])):
@@ -241,50 +259,68 @@ def parse_maze(maze_str):
 
 
 def main():
-    start_position = find_start(maze)
     visibility_map = VisibilityMap(maze)
-    visibility_map.update_visibility(start_position)
-    visibility_map.compute_boundary_cells() 
-    draw_boundary_cells(visibility_map.boundary_cells)
-    rep = visibility_map.generate_repulsion_field()
-    repulsion_field = rep
-    print(rep)
-    midpoint = 1. - np.max(repulsion_field) / (np.max(repulsion_field) - np.min(repulsion_field))
-    
-    # Create a custom colormap
-    # Colors will range from blue (less intense) for negative values to red (more intense) for positive values
-    cmap = mcolors.LinearSegmentedColormap.from_list('my_cmap', ['red', 'white', 'blue'])
-    
-    # Create a normalize object that will map the repulsion values to the [0, 1] range of the colormap
-    norm = mcolors.TwoSlopeNorm(vmin=np.min(repulsion_field), vcenter=0, vmax=np.max(repulsion_field))
-    
-    # Plot the heatmap
-    plt.imshow(repulsion_field, cmap=cmap, norm=norm)
-    plt.colorbar()
-    plt.title('Repulsion Field Heatmap')
-    plt.xlabel('X coordinate')
-    plt.ylabel('Y coordinate')
-    plt.show()
-
-    while True:
+    #-------------------------
+    path = [(8, 15), (7, 15), (7, 16), (7, 17), (6, 17),
+            (5, 17), (4, 17), (3, 17), (3, 18), (2, 18), (1, 18), (1, 17), (1, 16), (1, 15), (1, 14), (1, 13), (1, 12),
+            (1, 11), (1, 10), (1, 9), (1, 8), (1, 7), (2, 7), (3, 7), (3, 8), (5, 8), (6, 8), (7, 8), (8, 8), (9, 8),
+            (9, 7), (9, 6), (9, 5), (9, 4), (9, 3), (9, 2), (8, 2), (7, 2), (7, 3), (7, 4), (6, 4), (5, 4), (5, 3),
+            (5, 2), (5, 1), (4, 1), (3, 1), (2, 1), (1, 1)]
+    robot_path = [(9, 19)]
+    path_index = 0
+    move_delay = 2000 # milliseconds
+    last_move_time = pygame.time.get_ticks()
+    running = True
+    while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
+                running = False
 
         screen.fill(WHITE)
         draw_maze()
-        draw_visibility_map(visibility_map)
-        visibility_map.compute_boundary_cells() 
-        draw_boundary_cells(visibility_map.boundary_cells)
-        rep = visibility_map.generate_repulsion_field()
+        if path_index < len(path):
+            current_pos = path[path_index]
+            draw_visibility_map(visibility_map)
+            visibility_map.update_visibility(current_pos)
+            visibility_map.compute_boundary_cells() 
+            draw_boundary_cells(visibility_map.boundary_cells)
+            rep = visibility_map.generate_repulsion_field()
+            att = compute_attraction_field(parse_maze(maze), current_pos)
+            fol = compute_following_field(rep, att, 1, 2)
+            repulsion_field = rep
+            following_field = fol
+            # print(rep)
+            # print("---------")
+            # print(att)
+            # print("---------")
+            # print(fol)
+        for i in range(path_index): #drawing the path of target
+            if i + 1 < len(path):
+                start_point = (path[i][1] * GRID_SIZE + GRID_SIZE // 2, path[i][0] * GRID_SIZE + GRID_SIZE // 2)
+                end_point = (path[i + 1][1] * GRID_SIZE + GRID_SIZE // 2, path[i + 1][0] * GRID_SIZE + GRID_SIZE // 2)
+                pygame.draw.line(screen, (128, 128, 128), start_point, end_point, 5)
 
+        robot_position = robot_path[-1]
+        for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+            nx, ny = robot_position[0] + dx, robot_position[1] + dy
+            if 0 <= nx < len(maze) and 0 <= ny < len(maze[0]):
+                if fol[nx][ny] > fol[robot_position[0]][robot_position[1]]:
+                    robot_position = (nx, ny)
+        robot_path.append(robot_position)
         
+        for i in range(len(robot_path) - 1):
+            if i+1 < len(robot_path):
+                pygame.draw.circle(screen, (0, 128, 0), (robot_path[-2][1] * GRID_SIZE + GRID_SIZE // 2, robot_path[-2][0] * GRID_SIZE + GRID_SIZE // 2), GRID_SIZE // 2)
 
         pygame.display.flip()
-        
+        current_time = pygame.time.get_ticks()
+        if current_time - last_move_time > move_delay and path_index < len(path):
+            path_index += 1
+            last_move_time = current_time
         clock.tick(FPS)
-        
+    plt.show()
+    pygame.quit()
+    sys.exit()    
 
 if __name__ == "__main__":
     main()
